@@ -18,8 +18,10 @@ def make_multiplex(imgdata,timewindow=100,overlap=0,nanlogfile=None):
     k = get_number_of_layers(imgdata.shape,timewindow,overlap)
     start_times,end_times = get_start_and_end_times(k,timewindow,overlap)
     
+    #creating the MLN
     M = pn.MultiplexNetwork(couplings='ordinal',fullyInterconnected=True)
     
+    #create adjacency matrix for each time window and put into MLN
     for tw_no in range(k):
         #start = tw_no*(timewindow-overlap)
         #end = timewindow + tw_no*(timewindow-overlap)
