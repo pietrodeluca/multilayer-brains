@@ -210,13 +210,16 @@ def yield_clustered_multilayer_network_in_layersets(imgdata,layerset_size,timewi
     # If event_time_stamps is specified, then they are used to compute start_times, end_times and k (and timewindow and overlap are ignored).
     # Otherwise, timewindow and overlap are used ot compute start_times, end_times and k.
     if event_time_stamps == None:
+        #number of slices
         k = get_number_of_layers(imgdata.shape,timewindow,overlap)
+        #of each time window
         start_times,end_times = get_start_and_end_times(k,timewindow,overlap)
     else:
         assert isinstance(event_time_stamps,list)
         k = len(event_time_stamps) + 1
         start_times = [0] + event_time_stamps
         end_times = event_time_stamps + [imgdata.shape[3]]
+    #set of layers for each mln
     layersets = zip(*(range(k)[ii:] for ii in range(layerset_size)))
     
     if calculate_consistency_while_clustering == 'aggregate':
@@ -227,6 +230,7 @@ def yield_clustered_multilayer_network_in_layersets(imgdata,layerset_size,timewi
         for layerset in layersets:
             M = pn.MultilayerNetwork(aspects=1,fullyInterconnected=False)
             previous_voxels_in_clusters = dict()
+            #clustering for single timewindow
             for tw_no in layerset:
                 if not tw_no in voxels_in_clusters_by_timewindow:
                     voxels_in_clusters = dict()
@@ -235,13 +239,16 @@ def yield_clustered_multilayer_network_in_layersets(imgdata,layerset_size,timewi
                         voxels_in_clusters.setdefault(label,[]).append(voxellist[ii])
                     voxels_in_clusters_by_timewindow[tw_no] = voxels_in_clusters
                 else:
+                    #already calculated clusters
                     voxels_in_clusters = voxels_in_clusters_by_timewindow[tw_no]
+                #single layer network (edge weights)
                 R = calculate_cluster_correlation_matrix(imgdata[:,:,:,start_times[tw_no]:end_times[tw_no]],voxels_in_clusters)
                 for ii in range(R.shape[0]):
                     node1 = str(voxels_in_clusters[ii])
                     for jj in range(ii+1,R.shape[1]):
                         node2 = str(voxels_in_clusters[jj])
                         if not np.isnan(R[ii,jj]):
+                            #constructing within layer edges in mln
                             M[node1,tw_no][node2,tw_no] = R[ii,jj]
                         else:
                             if nanlogfile != None:
@@ -252,6 +259,7 @@ def yield_clustered_multilayer_network_in_layersets(imgdata,layerset_size,timewi
                 for cluster_number in voxels_in_clusters:
                     for previous_cluster_number in previous_voxels_in_clusters:
                         cluster_overlap = get_overlap(set(voxels_in_clusters[cluster_number]),set(previous_voxels_in_clusters[previous_cluster_number]))
+                        #add between layer edges
                         M[str(previous_voxels_in_clusters[previous_cluster_number]),tw_no-1][str(voxels_in_clusters[cluster_number]),tw_no] = cluster_overlap
                 previous_voxels_in_clusters = voxels_in_clusters # reference to the same object
                 if calculate_consistency_while_clustering: # calculating spatial consistency of formed clusters
@@ -267,8 +275,11 @@ def yield_clustered_multilayer_network_in_layersets(imgdata,layerset_size,timewi
                             consistency_dict_aggregated[tw_no] = calculate_spatial_consistency(windowdata,voxels_in_clusters,f_transform_consistency,n_consistency_CPUs,None)
                     else:
                         calculate_spatial_consistency(windowdata,voxels_in_clusters,f_transform_consistency,n_consistency_CPUs,consistency_save_path_final)
+            #deleting oldest layer clustering
             del(voxels_in_clusters_by_timewindow[min(voxels_in_clusters_by_timewindow)])
+            #give single mln for iteration
             yield M
+            #delete old mln
             del(M)
     
     elif method == 'template':
@@ -436,7 +447,14 @@ def yield_clustered_multilayer_network_in_layersets(imgdata,layerset_size,timewi
                     voxels_in_clusters_by_timewindow[tw_no] = voxels_in_clusters
                 else:
                     voxels_in_clusters = voxels_in_clusters_by_timewindow[tw_no]
-                R = calculate_cluster_correlation_matrix(imgdata[:,:,:,start_times[tw_no]:end_times[tw_no]],voxels_in_clusters)
+                R = calculate_cluster_correlation_matrix(imgdata[:,:,:,s2 + 'at timewindow ' + str(tw_no) + '/n')
+                for cluster_number in voxels_in_clusters:
+                    for previous_cluster_number in previous_voxels_in_clusters:
+                        # If previous_voxels_in_clusters is empty, this loop isn't performed at all
+                        cluster_overlap = get_overlap(set(voxels_in_clusters[cluster_number]),set(previous_voxels_in_clusters[previous_cluster_number]))
+                        M[str(previous_voxels_in_clusters[previous_cluster_number]),tw_no-1][str(voxels_in_clusters[cluster_number]),tw_no] = cluster_overlap
+                previous_voxels_in_clusters = voxels_in_clusters
+                if calculate_consistency_while_ctart_times[tw_no]:end_times[tw_no]],voxels_in_clusters)
                 for ii in range(R.shape[0]):
                     node1 = str(voxels_in_clusters[ii])
                     for jj in range(ii+1,R.shape[1]):
@@ -448,14 +466,7 @@ def yield_clustered_multilayer_network_in_layersets(imgdata,layerset_size,timewi
                                 with open(nanlogfile,'a+') as f:
                                     f.write('NaN correlation at nodes ' + node1 + ',' + node2 + 'at timewindow ' + str(tw_no) + '/n')
                             else:
-                                print('NaN correlation at nodes ' + node1 + ',' + node2 + 'at timewindow ' + str(tw_no) + '/n')
-                for cluster_number in voxels_in_clusters:
-                    for previous_cluster_number in previous_voxels_in_clusters:
-                        # If previous_voxels_in_clusters is empty, this loop isn't performed at all
-                        cluster_overlap = get_overlap(set(voxels_in_clusters[cluster_number]),set(previous_voxels_in_clusters[previous_cluster_number]))
-                        M[str(previous_voxels_in_clusters[previous_cluster_number]),tw_no-1][str(voxels_in_clusters[cluster_number]),tw_no] = cluster_overlap
-                previous_voxels_in_clusters = voxels_in_clusters
-                if calculate_consistency_while_clustering:
+                                print('NaN correlation at nodes ' + node1 + ',' + nodelustering:
                     assert consistency_save_path != None, 'Path for saving spatial consistency is not defined. Please give a path as the consistency_save_path parameter (or set calculate_consistency_while_clustering to False).'
                     windowdata = imgdata[:,:,:,start_times[tw_no]:end_times[tw_no]]
                     if '.' in consistency_save_path:
