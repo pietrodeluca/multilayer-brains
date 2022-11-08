@@ -2066,6 +2066,8 @@ def growOptimizedROIs(cfg,verbal=True):
         cfg['template'] = None
     if not 'nROIs' in cfg.keys():
         cfg['nROIs'] = 100
+    if not 'names' in cfg.keys():
+	cfg['names']=''
     imgdata = cfg['imgdata']
     voxelCoordinates = list(zip(*np.where(np.any(imgdata != 0, 3) == True)))
     if 'consistencyType' in cfg.keys():
@@ -2086,7 +2088,9 @@ def growOptimizedROIs(cfg,verbal=True):
         includeNeighborhoods = cfg['includeNeighborhoodsInCentroids']
     else:
         includeNeighborhoods = False
-    if cfg['ROICentroids'] == 'random':
+	if cfg['ROICentroids'] == 'random':
+	if template==None or not 'template' in cfg.keys():
+	    raise Exception("No template found for ROIs, insert one")
         template = cfg['template']
         nROIs = cfg['nROIs']
         ROICentroids = getRandomCentroids(nROIs,template)
